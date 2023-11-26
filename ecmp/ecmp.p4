@@ -54,12 +54,13 @@ header tcp_t{
 }
 
 struct metadata {
-    /* empty */
+    bit<14> ecmp_hash;
 }
 
 struct headers {
     ethernet_t   ethernet;
     ipv4_t       ipv4;
+    tcp_t        tcp;
 }
 
 /*************************************************************************
