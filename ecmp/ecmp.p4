@@ -54,7 +54,7 @@ header tcp_t{
 }
 
 struct metadata {
-    bit<14> ecmp_hash;
+    bit<1> ecmp_hash;
 }
 
 struct headers {
@@ -115,8 +115,80 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
-    // FIXME: Implement the dataplane logic here
+    action drop() {
+        mark_to_drop(standard_metadata);
+    }
+
+    action compute_tcp_hash() {
+        // extern void hash<O, T, D, M>(out O result, in HashAlgorithm algo, in T base, in D data, in M max);
+        hash(
+            meta.ecmp_hash,
+            HashAlgorithm.crc16,
+            bit<1>(0),
+            {
+                hdr.ipv4.srcAddr,
+                hdr.tcp.srcPort,
+                hdr.ipv4.dstAddr,
+                hdr.tcp.dstPort,
+                hdr.ipv4.protocol
+            },
+            bit<1>(1)
+        );
+    }
+
+    action ipv4_forward(macAddr_t dstAddr, egressSpec_t port) {
+        standard_metadata.egress_spec = port;
+        hdr.ethernet.srcAddr = hdr.ethernet.dstAddr;
+        hdr.ethernet.dstAddr = dstAddr;
+        hdr.ipv4.ttl = hdr.ipv4.ttl - 1;
+    }
+
+    table ipv4_exact {
+        key = {
+            hdr.ipv4.dstAddr: exact;
+        }
+        actions = {
+            ipv4_forward;
+            compute_tcp_hash;
+            drop;
+            NoAction;
+        }
+        size = 1024;
+        default_action = drop();
+    }
+
+    table ecmp {
+        key = {
+            meta.ecmp_hash: exact;
+        }
+        actions = {
+            drop;
+            ipv4_forward;
+        }
+        size = 1024;
+        default_action = drop();
+    }
+
+    // apply {
+    //     if (hdr.ipv4.isValid()) {
+    //         if (hdr.tcp.isValid()) {
+    //             // ECMP
+    //         }
+    //         else {
+    //             ipv4_exact.apply();
+    //         }
+    //     }
+    // }
+    apply {
+        if (hdr.ipv4.isValid()) {
+            switch (ipv4_exact.apply().action_run){
+                compute_tcp_hash: {
+                    ecmp.apply();
+                }
+        }
+    }
 }
+
 
 /*************************************************************************
 ****************  E G R E S S   P R O C E S S I N G   *******************
