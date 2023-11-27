@@ -116,9 +116,9 @@ def writeAllForwardingRules(p4info_helper, sw_list):
     # Extra ECMP rules for s2
     writeECMPHashCalculationRule(p4info_helper, sw=s2, dst_ip_addr="10.0.1.1")
     writeECMPHashCalculationRule(p4info_helper, sw=s2, dst_ip_addr="10.0.2.2")
-    writeECMPForwardingRule(p4info_helper, sw=s1, hash_val=0,
+    writeECMPForwardingRule(p4info_helper, sw=s2, hash_val=0,
                          dst_eth_addr="08:00:00:00:03:00", port = 4)
-    writeECMPForwardingRule(p4info_helper, sw=s1, hash_val=1, 
+    writeECMPForwardingRule(p4info_helper, sw=s2, hash_val=1, 
                          dst_eth_addr="08:00:00:00:04:00", port = 3)
 
     # Write forwarding rules for s3
