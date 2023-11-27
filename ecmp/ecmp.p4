@@ -124,7 +124,7 @@ control MyIngress(inout headers hdr,
         hash(
             meta.ecmp_hash,
             HashAlgorithm.crc16,
-            0,
+            (bit<1>)0,
             {
                 hdr.ipv4.srcAddr,
                 hdr.tcp.srcPort,
@@ -132,7 +132,7 @@ control MyIngress(inout headers hdr,
                 hdr.tcp.dstPort,
                 hdr.ipv4.protocol
             },
-            1
+            (bit<1>)1
         );
     }
 
