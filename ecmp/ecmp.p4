@@ -120,7 +120,6 @@ control MyIngress(inout headers hdr,
     }
 
     action compute_ecmp_hash() {
-        // extern void hash<O, T, D, M>(out O result, in HashAlgorithm algo, in T base, in D data, in M max);
         hash(
             meta.ecmp_hash,
             HashAlgorithm.crc16,
@@ -169,22 +168,17 @@ control MyIngress(inout headers hdr,
         default_action = drop();
     }
 
-    // apply {
-    //     if (hdr.ipv4.isValid()) {
-    //         if (hdr.tcp.isValid()) {
-    //             ecmp.apply();
-    //         }
-    //         else {
-    //             ipv4_exact.apply();
-    //         }
-    //     }
-    // }
     apply {
         if (hdr.ipv4.isValid()) {
-            switch (ipv4_exact.apply().action_run) {
-                compute_ecmp_hash: {
-                    ecmp.apply();
+            if (hdr.tcp.isValid()) {
+                switch (ipv4_exact.apply().action_run) {
+                    compute_ecmp_hash: {
+                        ecmp.apply();
+                    }
                 }
+            }
+            else {
+                ipv4_exact.apply();
             }
         }
     }

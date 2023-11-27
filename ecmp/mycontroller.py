@@ -59,6 +59,7 @@ def writeECMPForwardingRule(p4info_helper, sw, hash_val, dst_eth_addr, port):
     """
     :param p4info_helper: the P4Info helper
     :param sw: the switch connection
+    :param hash_val: the hashed value which is used to determine which port to forward out of
     :param dst_eth_addr: the destination Ethernet address to write in the packet
     :param port: port to forward the packet out of 
     """
@@ -85,12 +86,6 @@ def writeAllForwardingRules(p4info_helper, sw_list):
     writeStandardForwardingRule(p4info_helper, sw=s1, dst_ip_addr="10.0.2.2", 
                          dst_eth_addr="08:00:00:00:02:22", port=2) 
 
-    # writeStandardForwardingRule(p4info_helper, sw=s1, dst_ip_addr="10.0.3.3", 
-    #                      dst_eth_addr="08:00:00:00:03:00", port=3) 
-
-    # writeStandardForwardingRule(p4info_helper, sw=s1, dst_ip_addr="10.0.4.4", 
-    #                      dst_eth_addr="08:00:00:00:04:00", port=4) 
-
     # Extra ECMP rules for s1
     writeECMPHashCalculationRule(p4info_helper, sw=s1, dst_ip_addr="10.0.3.3")
     writeECMPHashCalculationRule(p4info_helper, sw=s1, dst_ip_addr="10.0.4.4")
@@ -102,11 +97,6 @@ def writeAllForwardingRules(p4info_helper, sw_list):
     
 
     # Write forwarding rules for s2
-    # writeStandardForwardingRule(p4info_helper, sw=s2, dst_ip_addr="10.0.1.1",
-    #                      dst_eth_addr="08:00:00:00:03:00", port = 4)
-    
-    # writeStandardForwardingRule(p4info_helper, sw=s2, dst_ip_addr="10.0.2.2",
-    #                      dst_eth_addr="08:00:00:00:04:00", port = 3) 
     writeStandardForwardingRule(p4info_helper, sw=s2, dst_ip_addr="10.0.3.3",
                          dst_eth_addr="08:00:00:00:03:33", port = 1)
 
@@ -210,7 +200,6 @@ def main(p4info_file_path, bmv2_file_path):
 
         sw_list = [s1, s2, s3, s4]
         # Write forwarding rules
-        # FIXME: Add the forwarding rules
         writeAllForwardingRules(p4info_helper, sw_list);  
 
     except KeyboardInterrupt:
