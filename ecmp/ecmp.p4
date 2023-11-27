@@ -132,7 +132,7 @@ control MyIngress(inout headers hdr,
                 hdr.tcp.dstPort,
                 hdr.ipv4.protocol
             },
-            (bit<1>)1
+            (bit<2>)2
         );
     }
 
