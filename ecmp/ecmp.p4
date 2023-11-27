@@ -119,7 +119,7 @@ control MyIngress(inout headers hdr,
         mark_to_drop(standard_metadata);
     }
 
-    action compute_tcp_hash() {
+    action compute_ecmp_hash() {
         // extern void hash<O, T, D, M>(out O result, in HashAlgorithm algo, in T base, in D data, in M max);
         hash(
             meta.ecmp_hash,
@@ -149,7 +149,7 @@ control MyIngress(inout headers hdr,
         }
         actions = {
             ipv4_forward;
-            compute_tcp_hash;
+            compute_ecmp_hash;
             drop;
             NoAction;
         }
@@ -172,7 +172,7 @@ control MyIngress(inout headers hdr,
     // apply {
     //     if (hdr.ipv4.isValid()) {
     //         if (hdr.tcp.isValid()) {
-    //             // ECMP
+    //             ecmp.apply();
     //         }
     //         else {
     //             ipv4_exact.apply();
@@ -181,10 +181,11 @@ control MyIngress(inout headers hdr,
     // }
     apply {
         if (hdr.ipv4.isValid()) {
-            switch (ipv4_exact.apply().action_run){
-                compute_tcp_hash: {
+            switch (ipv4_exact.apply().action_run) {
+                compute_ecmp_hash: {
                     ecmp.apply();
                 }
+            }
         }
     }
 }

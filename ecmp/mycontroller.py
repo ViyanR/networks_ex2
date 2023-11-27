@@ -14,6 +14,140 @@ import p4runtime_lib.bmv2
 import p4runtime_lib.helper
 from p4runtime_lib.switch import ShutdownAllSwitchConnections
 
+def writeStandardForwardingRule(p4info_helper, sw, dst_ip_addr, 
+                         dst_eth_addr, port):
+    """
+    :param p4info_helper: the P4Info helper
+    :param sw: the switch connection
+    :param dst_ip_addr: the destination IP to match
+    :param dst_eth_addr: the destination Ethernet address to write in the packet
+    :param port: the port to forward the packet out of 
+    """
+    table_entry = p4info_helper.buildTableEntry(
+        table_name="MyIngress.ipv4_exact",
+        match_fields={
+            "hdr.ipv4.dstAddr": (dst_ip_addr)
+        },
+        action_name="MyIngress.ipv4_forward",
+        action_params={
+            "dstAddr": dst_eth_addr,
+            "port": port,
+        })
+    sw.WriteTableEntry(table_entry)
+    print("Installed forwarding rule to %s on %s" % (dst_ip_addr, sw.name))
+    
+def writeECMPHashCalculationRule(p4info_helper, sw, dst_ip_addr):
+    """
+    :param p4info_helper: the P4Info helper
+    :param sw: the switch connection
+    :param dst_ip_addr: the destination IP to match
+    """
+    table_entry = p4info_helper.buildTableEntry(
+        table_name="MyIngress.ipv4_exact",
+        match_fields={
+            "hdr.ipv4.dstAddr": (dst_ip_addr)
+        },
+        action_name="MyIngress.compute_ecmp_hash",
+        )
+    sw.WriteTableEntry(table_entry)
+    print("Installed hash calculation rule on %s" % (sw.name))
+    
+
+# Rule for ECMP forwarding, where there are two possible paths/ports that the packet may go out of.
+# Use hash value in metadata (which is either 0 or 1) to determine which port to forward out of
+def writeECMPForwardingRule(p4info_helper, sw, hash_val, dst_eth_addr, port):
+    """
+    :param p4info_helper: the P4Info helper
+    :param sw: the switch connection
+    :param dst_eth_addr: the destination Ethernet address to write in the packet
+    :param port: port to forward the packet out of 
+    """
+    table_entry = p4info_helper.buildTableEntry(
+        table_name="MyIngress.ecmp",
+        match_fields={
+            "meta.ecmp_hash": hash_val
+        },
+        action_name="MyIngress.ipv4_forward",
+        action_params={
+            "dstAddr": dst_eth_addr,
+            "port": port,
+        })
+    sw.WriteTableEntry(table_entry)
+    print("Installed ECMP forwarding rule on %s via %s" % (sw.name, port))
+    
+def writeAllForwardingRules(p4info_helper, sw_list):
+    s1, s2, s3, s4 = sw_list
+
+    # Write forwarding rules for s1
+    writeStandardForwardingRule(p4info_helper, sw=s1, dst_ip_addr="10.0.1.1", 
+                         dst_eth_addr="08:00:00:00:01:11", port=1) 
+
+    writeStandardForwardingRule(p4info_helper, sw=s1, dst_ip_addr="10.0.2.2", 
+                         dst_eth_addr="08:00:00:00:02:22", port=2) 
+
+    # writeStandardForwardingRule(p4info_helper, sw=s1, dst_ip_addr="10.0.3.3", 
+    #                      dst_eth_addr="08:00:00:00:03:00", port=3) 
+
+    # writeStandardForwardingRule(p4info_helper, sw=s1, dst_ip_addr="10.0.4.4", 
+    #                      dst_eth_addr="08:00:00:00:04:00", port=4) 
+
+    # Extra ECMP rules for s1
+    writeECMPHashCalculationRule(p4info_helper, sw=s1, dst_ip_addr="10.0.3.3")
+    writeECMPHashCalculationRule(p4info_helper, sw=s1, dst_ip_addr="10.0.4.4")
+    writeECMPForwardingRule(p4info_helper, sw=s1, hash_val=0,
+                         dst_eth_addr="08:00:00:00:03:00", port=3)
+    writeECMPForwardingRule(p4info_helper, sw=s1, hash_val=1, 
+                         dst_eth_addr="08:00:00:00:04:00", port=4)
+
+    
+
+    # Write forwarding rules for s2
+    # writeStandardForwardingRule(p4info_helper, sw=s2, dst_ip_addr="10.0.1.1",
+    #                      dst_eth_addr="08:00:00:00:03:00", port = 4)
+    
+    # writeStandardForwardingRule(p4info_helper, sw=s2, dst_ip_addr="10.0.2.2",
+    #                      dst_eth_addr="08:00:00:00:04:00", port = 3) 
+    writeStandardForwardingRule(p4info_helper, sw=s2, dst_ip_addr="10.0.3.3",
+                         dst_eth_addr="08:00:00:00:03:33", port = 1)
+
+    writeStandardForwardingRule(p4info_helper, sw=s2, dst_ip_addr="10.0.4.4",
+                         dst_eth_addr="08:00:00:00:04:44", port = 2)
+    
+    # Extra ECMP rules for s2
+    writeECMPHashCalculationRule(p4info_helper, sw=s2, dst_ip_addr="10.0.1.1")
+    writeECMPHashCalculationRule(p4info_helper, sw=s2, dst_ip_addr="10.0.2.2")
+    writeECMPForwardingRule(p4info_helper, sw=s1, hash_val=0,
+                         dst_eth_addr="08:00:00:00:03:00", port = 4)
+    writeECMPForwardingRule(p4info_helper, sw=s1, hash_val=1, 
+                         dst_eth_addr="08:00:00:00:04:00", port = 3)
+
+    # Write forwarding rules for s3
+    writeStandardForwardingRule(p4info_helper, sw=s3, dst_ip_addr="10.0.1.1",
+                         dst_eth_addr="08:00:00:00:01:00", port = 1)
+    
+    writeStandardForwardingRule(p4info_helper, sw=s3, dst_ip_addr="10.0.2.2",
+                         dst_eth_addr="08:00:00:00:01:00", port = 1) 
+
+    writeStandardForwardingRule(p4info_helper, sw=s3, dst_ip_addr="10.0.3.3",
+                         dst_eth_addr="08:00:00:00:02:00", port = 2)
+
+    writeStandardForwardingRule(p4info_helper, sw=s3, dst_ip_addr="10.0.4.4",
+                         dst_eth_addr="08:00:00:00:02:00", port = 2)
+
+    # Write forwarding rules for s4
+    writeStandardForwardingRule(p4info_helper, sw=s4, dst_ip_addr="10.0.1.1",
+                         dst_eth_addr="08:00:00:00:01:00", port = 2)
+    
+    writeStandardForwardingRule(p4info_helper, sw=s4, dst_ip_addr="10.0.2.2",
+                         dst_eth_addr="08:00:00:00:01:00", port = 2) 
+
+    writeStandardForwardingRule(p4info_helper, sw=s4, dst_ip_addr="10.0.3.3",
+                         dst_eth_addr="08:00:00:00:02:00", port = 1)
+
+    writeStandardForwardingRule(p4info_helper, sw=s4, dst_ip_addr="10.0.4.4",
+                             dst_eth_addr="08:00:00:00:02:00", port = 1)
+
+
 def printGrpcError(e):
     print("gRPC Error:", e.details(), end=' ')
     status_code = e.code()
@@ -77,6 +211,7 @@ def main(p4info_file_path, bmv2_file_path):
         sw_list = [s1, s2, s3, s4]
         # Write forwarding rules
         # FIXME: Add the forwarding rules
+        writeAllForwardingRules(p4info_helper, sw_list);  
 
     except KeyboardInterrupt:
         print(" Shutting down.")
